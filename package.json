@@ -1,0 +1,16 @@
+{
+  "name": "ts-schema-gen",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "tsc && node dist/index.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "lodash": "^4.17.11",
+    "typescript": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.14.116",
+    "@types/node": "^10.10.1"
+  }
+}
