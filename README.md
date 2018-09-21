@@ -1,0 +1,1 @@
+This repo is a work in progress.  The basic concept is create some TypeScript interfaces to describe an API, generate some documentation, and then pick a target language to generate schemas.  Initial implementation will only support golang but if the emitter needs to be extended then additional languages should be able to be added.
