@@ -94,6 +94,7 @@ interface Unions {
     my_string_string_number_union: string | string | number;
     my_false_true_union: false | true;
     my_int_rune_union: int | rune;
+    my_int_complex_union: int | Scalars;
 }
 
 // interface Ribbon {

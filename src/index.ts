@@ -1,5 +1,4 @@
-import fs from "fs";
-import { each, map, filter, includes, camelCase } from "lodash";
+import { each, filter, includes, camelCase } from "lodash";
 import {
     SyntaxKind,
     Node,
@@ -17,7 +16,6 @@ import {
     isLiteralTypeNode,
     isArrayTypeNode,
     isUnionTypeNode,
-    isTypeAliasDeclaration,
 } from "typescript";
 global.lkp = (kind: SyntaxKind): string => SyntaxKind[kind];
 
@@ -25,6 +23,7 @@ const pascalCase = (val: string): string =>
     (camel => camel.charAt(0).toUpperCase() + camel.slice(1))
         (camelCase(val));
 
+// TODO: This looks like a bad pattern.  Work towards moving everything into a visitor pattern instead.
 const getLiteralType = (kind: SyntaxKind): string => {
     switch (kind) {
         case SyntaxKind.FalseKeyword:
@@ -60,8 +59,6 @@ const numAliases = [
     'rune'
 ];
 
-
-
 const codeGen = (fileNames: string[], options: CompilerOptions) => {
     const program = createProgram(fileNames, options);
     const files = filter(program.getSourceFiles(), f => includes(fileNames, f.fileName));
@@ -69,18 +66,7 @@ const codeGen = (fileNames: string[], options: CompilerOptions) => {
     each(files, file => {
         let emit = "";
 
-        // see: https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API
-        // see: https://basarat.gitbooks.io/typescript/docs/compiler/ast.html
-        // see: https://en.wikipedia.org/wiki/Abstract_syntax_tree
-        // Also, sounds like the visitor pattern might be an option for more flexibility for plugin stuff
-        const walk = (node: Node): void => {
-            // Traverse|Recurse types
-            if (node.kind === SyntaxKind.SyntaxList ||
-                node.kind === SyntaxKind.SourceFile) {
-                map(node.getChildren(), c => walk(c));
-                return;
-            }
-
+        const emitGoPackage = (node: Node): void => {
             if (isVariableStatement(node)) {
                 const declarations = node.declarationList.declarations
                 each(declarations, declaration => {
@@ -95,9 +81,10 @@ const codeGen = (fileNames: string[], options: CompilerOptions) => {
                         }
                     }
                 });
-                return;
             }
+        }
 
+        const emitStruct = (node: Node): void => {
             // Interfaces
             if (isInterfaceDeclaration(node)) {
                 emit += `type ${node.name.text} struct {\n`;
@@ -170,15 +157,20 @@ const codeGen = (fileNames: string[], options: CompilerOptions) => {
                                             aggregatable = initialType === "string";
                                         }
                                         if (isTypeReferenceNode(tn)) {
-                                            if (propName === "my_int_rune_union") debugger;
+                                            // if (propName === "my_int_rune_union") debugger;
                                             const typeName = tn.typeName;
                                             if (isIdentifier(typeName)) {
                                                 let golangType = "";
                                                 if (includes(boolAliases, typeName.text)) {
                                                     golangType = "bool";
-                                                }
-                                                if (includes(numAliases, typeName.text)) {
+                                                } else if (includes(numAliases, typeName.text)) {
                                                     golangType = "float64";
+                                                } else {
+                                                    const details = checker.getSymbolAtLocation(typeName);
+                                                    if (details && details.members) {
+                                                        debugger; // TODO: work on union types
+                                                        // details.members
+                                                    }
                                                 }
                                                 initialType = initialType || golangType || typeName.text;
                                                 aggregatable = initialType === (golangType || typeName.text);
@@ -226,17 +218,19 @@ const codeGen = (fileNames: string[], options: CompilerOptions) => {
                     }
                 });
                 emit += "}\n\n";
-                return;
             }
-
-            // Non-emit types
-            if (node.kind === SyntaxKind.EndOfFileToken ||
-                isTypeAliasDeclaration(node))
-                return;
-
-            debugger;
-            throw `Unhandled syntax kind: ${node.kind}`;
         }
+
+        // see: https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API
+        // see: https://basarat.gitbooks.io/typescript/docs/compiler/ast.html
+        // see: https://en.wikipedia.org/wiki/Abstract_syntax_tree
+        // Also, sounds like the visitor pattern might be an option for more flexibility for plugin stuff
+        const walk = (node: Node): void => {
+            node.forEachChild(emitGoPackage);
+            node.forEachChild(emitStruct);
+            node.forEachChild(walk);
+        }
+        
         walk(file);
         console.log(emit);
     });
