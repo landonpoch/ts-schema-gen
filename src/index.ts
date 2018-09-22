@@ -7,9 +7,10 @@ import {
     ModuleKind,
     isVariableStatement,
     isInterfaceDeclaration,
+    isTypeAliasDeclaration,
 } from "typescript";
 import { createWriter } from "./utils";
-import { emitGoPackage, emitStruct } from "./emitter";
+import { emitPackageDeclaration, emitInterface, emitAlias } from "./emitter";
 
 global.lkp = (kind: SyntaxKind): string => SyntaxKind[kind];
 
@@ -24,8 +25,9 @@ const codeGen = (fileNames: string[], options: CompilerOptions) => {
         // see: https://basarat.gitbooks.io/typescript/docs/compiler/ast.html
         // see: https://en.wikipedia.org/wiki/Abstract_syntax_tree
         const walk = (node: Node): void => {
-            if (isVariableStatement(node)) emitGoPackage(node, writer);
-            if (isInterfaceDeclaration(node)) emitStruct(node, writer, checker);
+            if (isVariableStatement(node)) emitPackageDeclaration(node, writer);
+            if (isTypeAliasDeclaration(node)) emitAlias(node, writer, checker);
+            if (isInterfaceDeclaration(node)) emitInterface(node, writer, checker);
             node.forEachChild(walk);
         }
         

@@ -18,9 +18,35 @@ type rune = int32;
 
 const go_package = "api_test";
 
+type AliasInt = int;
+type AliasReference = Scalars;
+type AliasUnionIntIn8 = int | int8;
+type AliasUnionIntInt = int | int;
+type AliasUnionInt16Number = int16 | number;
+type AliasUnionStringByte = string | byte;
+type AliasUnionStringString = string | string;
+type AliasUnionStringStringNumber = string | string | number;
+type AliasUnionReferenceString = Scalars | string;
+type AliasUnionReferenceReference = Scalars | Scalars;
+type AliasUnionReferenceDiffReference = UnionType1 | UnionType2;
+
+interface UnionType1 {
+    type: "hello";
+    dude: string;
+    test: string;
+    test2?: string;
+}
+
+interface UnionType2 {
+    type: "world";
+    other_dude: string;
+    test: number;
+    test2: string;
+}
+
 interface Scalars {
     // Defaults
-    my_boolean: boolean;
+    my_boolean?: boolean;
     my_number: number;
     my_string: string;
 
@@ -85,6 +111,8 @@ interface Arrays {
     my_complex: Scalars[];
 }
 
+// TODO: Should inline unions not be supported for golang emit?
+// Probably doesn't make sense to come up with arbitrary names
 interface Unions {
     my_bool_bool_union: boolean | boolean;
     my_num_num_union: number | number;
@@ -97,31 +125,8 @@ interface Unions {
     my_int_complex_union: int | Scalars;
 }
 
-// interface Ribbon {
-//     title: string;
-//     tiles: Tile[];
-//     total_tiles: int;
-// }
-
-// interface Tile {
-//     format: "STANDARD";
-//     image: Image;
-//     title: string;
-//     attributes?: Attribute[];
-// }
-
-// interface Image {
-//     w: int;
-//     h: int;
-//     url: string;
-// }
-
-// interface Attribute {
-//     type: "ATTRIBUTE_TYPE";
-//     str_value: string;
-// }
-
 // TODO: TNullable? vs. Nullable<T> as it relates to T omitempty vs. *T omitempty?
 // TODO: Other potentially scalar interpreted values like time.Time or time.Duration (probably just numerics)
 // TODO: property signatures of embedded Array, Map, Generic<T>, Object Literals and Objects
-// TODO: Union types
+// TODO: Clean up union types
+// TODO: Ignore individual type inputs to union types?
