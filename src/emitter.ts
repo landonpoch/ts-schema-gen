@@ -126,6 +126,7 @@ interface Members {
 const emitClass = (node: ClassDeclaration, writer: Writer, checker: TypeChecker): void => {
     if (!!node.name) {
         writer.write(`type ${node.name.text} struct {\n`);
+        let members: Members = {};
         node.members.forEach(member => {
             if (isPropertyDeclaration(member)) {
                 const nullable = !!member.questionToken;
@@ -136,15 +137,21 @@ const emitClass = (node: ClassDeclaration, writer: Writer, checker: TypeChecker)
                         let propType = "";
                         let typeNode = member.type;
                         propType = getTypeName(typeNode, checker, writer);
-                        if (propType === "") {
-                            debugger;
-                        }
-                        // TODO: Property alignment formatting now, or post emit generation.
-                        writer.write(`    ${pascalCase(propName)} ${propType} \`json:"${propName}${nullable ? ",omitempty" : ""}"\`\n`);
+                        members[propName] = {
+                            required: !nullable,
+                            type: propName,
+                        };
                     }
                 }
             }
         });
+
+        const keys = Object.keys(members);
+        const keyLength = keys.reduce((agg, k) => agg < k.length ? k.length : agg, 0);
+        const typeLength = keys.reduce((agg, k) => agg < members[k].type.length ? members[k].type.length : agg, 0);        
+        keys.forEach(k => {
+            writer.write(`    ${pascalCase(k).padEnd(keyLength)} ${members[k].type.padEnd(typeLength)} \`json:"${k}${members[k].required ? "" : ",omitempty"}"\`\n`);
+        })
         writer.write("}\n\n");
     }
 }
@@ -247,8 +254,11 @@ const emitAlias = (node: TypeAliasDeclaration, writer: Writer, checker: TypeChec
                         const flattened = flattenUnion(unionedTypes);                        
                         writer.write(`type ${name.text} struct {\n`);
                         const keys = Object.keys(flattened);
+                        // TODO: Key length doesn't take into account pascalCase transformation
+                        const keyLength = keys.reduce((agg, k) => agg < k.length ? k.length : agg, 0);
+                        const typeLength = keys.reduce((agg, k) => agg < flattened[k].type.length ? flattened[k].type.length : agg, 0);
                         keys.forEach(k => {
-                            writer.write(`    ${pascalCase(k)} ${flattened[k].type} \`json:"${k}${flattened[k].required ? "" : ",omitempty"}"\`\n`)
+                            writer.write(`    ${pascalCase(k).padEnd(keyLength)} ${flattened[k].type.padEnd(typeLength)} \`json:"${k}${flattened[k].required ? "" : ",omitempty"}"\`\n`)
                         });
                         writer.write("}\n\n");
                     } else {
