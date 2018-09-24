@@ -208,7 +208,7 @@ const emitAlias = (node: TypeAliasDeclaration, writer: Writer, checker: TypeChec
         if (isUnionTypeNode(type)) {
                 let initialType = "";
                 let aggregatable = true;
-                let unionTypes: { [key: string]: UnderscoreEscapedMap<Symbol> } = {};
+                let unionedTypes: Members[] = [];
                 type.types.forEach(tn => {
                     if (tn.kind === SyntaxKind.BooleanKeyword) {
                         initialType = initialType || "bool";
@@ -233,7 +233,17 @@ const emitAlias = (node: TypeAliasDeclaration, writer: Writer, checker: TypeChec
                             } else {
                                 const details = checker.getSymbolAtLocation(typeName);
                                 if (details && details.members) {
-                                    unionTypes[typeName.text] = details.members;
+                                    let unionedType: Members = {};
+                                    details.members.forEach(m => {
+                                        const valueDeclaration = m.valueDeclaration;
+                                        if (isPropertySignature(valueDeclaration) && !!valueDeclaration.type) {
+                                            unionedType[m.name] = {
+                                                required: !valueDeclaration.questionToken,
+                                                type: getTypeName(valueDeclaration.type, checker, writer),
+                                            }
+                                        }
+                                    });
+                                    unionedTypes.push(unionedType);
                                 }
                             }
                             initialType = initialType || golangType || typeName.text;
@@ -247,54 +257,13 @@ const emitAlias = (node: TypeAliasDeclaration, writer: Writer, checker: TypeChec
                     writer.write(`type ${name.text} = interface{}\n`);
                 }
                 if (aggregatable) {
-                    const unionTypeNames = Object.keys(unionTypes);
-                    if (unionTypeNames.length > 1) {
-                        let flattenedMembers: Members = {};
-                        let initialized = false;
-                        unionTypeNames.forEach(k => {
-                            let typeMembers = unionTypes[k];
-                            let newKeys: string[] = [];
-                            typeMembers.forEach(m => { newKeys.push(m.name); });
-                            if (initialized) {
-                                const existingKeys = Object.keys(flattenedMembers);
-                                const unmatchedExistingKeys = existingKeys.filter(k => !newKeys.includes(k));
-                                unmatchedExistingKeys.forEach(k => {
-                                    flattenedMembers[k].required = false;
-                                });
-                            }
-                            typeMembers.forEach(m => {
-                                const valueDeclaration = m.valueDeclaration;
-                                if (isPropertySignature(valueDeclaration) && !!valueDeclaration.type) {
-                                    if (initialized) {
-                                        if (!flattenedMembers[m.name]) {
-                                            flattenedMembers[m.name] = {
-                                                required: false,
-                                                type: getTypeName(valueDeclaration.type, checker, writer),
-                                            };
-                                        } else {
-                                            const currentType = getTypeName(valueDeclaration.type, checker, writer);
-                                            const newType = flattenedMembers[m.name].type === currentType ? currentType : "interface{}";
-                                            const newRequired = flattenedMembers[m.name].required && !valueDeclaration.questionToken;
-                                            flattenedMembers[m.name] = {
-                                                required: newRequired,
-                                                type: newType,
-                                            }
-                                        }
-                                    } else {
-                                        flattenedMembers[m.name] = {
-                                            required: !valueDeclaration.questionToken,
-                                            type: getTypeName(valueDeclaration.type, checker, writer),
-                                        };
-                                    }
-                                }
-                            });
-                            initialized = true;
-                        });
+                    if (unionedTypes.length > 1) {
+                        const flattened = flattenUnion(unionedTypes);                        
                         writer.write(`type ${name.text} struct {\n`);
-                        const keys = Object.keys(flattenedMembers);
+                        const keys = Object.keys(flattened);
                         keys.forEach(k => {
-                            writer.write(`    ${pascalCase(k)} ${flattenedMembers[k].type} \`json:"${k}${flattenedMembers[k].required ? "" : ",omitempty"}"\`\n`)
-                        })
+                            writer.write(`    ${pascalCase(k)} ${flattened[k].type} \`json:"${k}${flattened[k].required ? "" : ",omitempty"}"\`\n`)
+                        });
                         writer.write("}\n\n");
                     } else {
                         writer.write(`type ${name.text} = ${initialType}\n`);
@@ -302,6 +271,27 @@ const emitAlias = (node: TypeAliasDeclaration, writer: Writer, checker: TypeChec
                 }
         }
     }
+}
+
+// Takes an array of types which are being unioned together, and flattens them into one object
+// with optional properties if not all unioned types contain the same member.
+const flattenUnion = (unionedTypes: Members[]): Members => {
+    return unionedTypes.reduce((flattened: Members, currentType: Members) => {
+        const existingKeys = Object.keys(flattened);
+        const currentKeys = Object.keys(currentType);
+        const unmatchedKeys = existingKeys.filter(k => !currentKeys.includes(k));
+        unmatchedKeys.forEach(k => { flattened[k].required = false; });
+        return Object.keys(currentType).reduce((_, memberName: string) => {
+            const memberType = currentType[memberName];
+            flattened[memberName] = {
+                required: !!flattened[memberName] && flattened[memberName].required && memberType.required,
+                type: !!flattened[memberName]
+                    ? flattened[memberName].type === memberType.type ? memberType.type : "interface{}"
+                    : memberType.type,
+            };
+            return flattened;
+        }, flattened);
+    });
 }
 
 export { emitPackageDeclaration, emitInterface, emitAlias }
