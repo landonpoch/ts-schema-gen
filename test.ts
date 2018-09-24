@@ -1,5 +1,6 @@
 // TODO: Move golang type aliases to separate file and import them?
 // golang type aliases
+type Ptr<T> = T;
 type bool = boolean;
 type int = number;
 type int8 = number;
@@ -41,6 +42,8 @@ interface UnionType1 {
     dude: string;
     test: string;
     test2?: string;
+    test3: Ptr<string>;
+    test4: Scalars;
 }
 
 interface UnionType2 {
@@ -48,6 +51,8 @@ interface UnionType2 {
     other_dude: string;
     test: number;
     test2: string;
+    test3: string;
+    test4: string;
 }
 
 class Scalars {
@@ -122,6 +127,5 @@ class Unions {
     union_alias: AliasUnionReferenceDiffReference;
 }
 
-// TODO: TNullable? vs. Nullable<T> as it relates to T omitempty vs. *T omitempty?
 // TODO: Other potentially scalar interpreted values like time.Time or time.Duration (probably just numerics)
 // TODO: property signatures of embedded Map, Generic<T> and Object Literals

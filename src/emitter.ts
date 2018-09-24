@@ -48,7 +48,7 @@ const getTypeName = (typeNode: TypeNode, checker: TypeChecker, writer: Writer): 
         return getArrayTypeName(typeNode, checker, writer);
     }
     if (isTypeReferenceNode(typeNode)) {
-        return getReferenceTypeName(typeNode, writer);
+        return getReferenceTypeName(typeNode, checker, writer);
     }
     if (isLiteralTypeNode(typeNode)) {
         return getLiteralTypeName(typeNode, writer);
@@ -80,9 +80,14 @@ const getScalarTypeName = (typeNode: TypeNode, writer: Writer): string => {
     }
 }
 
-const getReferenceTypeName = (typeNode: TypeReferenceNode, writer: Writer): string => {
+const getReferenceTypeName = (typeNode: TypeReferenceNode, checker: TypeChecker, writer: Writer): string => {
     const typeName = typeNode.typeName;
     if (isIdentifier(typeName)) {
+        // TODO: Special case logic for golang pointers but will probably need to be extended for generics
+        if (typeName.text === "Ptr" && !!typeNode.typeArguments && typeNode.typeArguments.length === 1) {
+            const genericType = typeNode.typeArguments[0];
+            return `*${getTypeName(genericType, checker, writer)}`;
+        }
         return typeName.text;
     }
     writer.toConsole();
@@ -151,7 +156,7 @@ const emitAlias = (node: TypeAliasDeclaration, writer: Writer, checker: TypeChec
     if (isIdentifier(name)) {
         // don't emit alias if it is a primitive golang type (int, int8, int16, etc...)
         // things things already exist in golang and they are primitives, not type aliases.
-        if (boolAliases.includes(name.text) || numAliases.includes(name.text)) return;
+        if (name.text === "Ptr" || boolAliases.includes(name.text) || numAliases.includes(name.text)) return;
 
         const type = node.type;
         if (isLiteralTypeNode(type)) {

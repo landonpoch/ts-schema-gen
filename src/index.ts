@@ -25,6 +25,7 @@ const codeGen = (fileNames: string[], options: CompilerOptions) => {
         // see: https://basarat.gitbooks.io/typescript/docs/compiler/ast.html
         // see: https://en.wikipedia.org/wiki/Abstract_syntax_tree
         const walk = (node: Node): void => {
+            // printAllChildren(node);
             if (isVariableStatement(node)) emitPackageDeclaration(node, writer);
             if (isTypeAliasDeclaration(node)) emitAlias(node, writer, checker);
             if (isClassDeclaration(node)) emitClass(node, writer, checker);
@@ -34,6 +35,12 @@ const codeGen = (fileNames: string[], options: CompilerOptions) => {
         walk(file);
         writer.toConsole();
     });
+}
+
+function printAllChildren(node: Node, depth = 0) {
+    console.log(new Array(depth+1).join('----'), global.lkp(node.kind), node.pos, node.end);
+    depth++;
+    node.getChildren().forEach(c=> printAllChildren(c, depth));
 }
 
 codeGen(process.argv.slice(2), {

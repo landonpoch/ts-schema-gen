@@ -6,13 +6,18 @@ Since this library is targeting golang as it emitted language at the moment, the
 ## Scalar Types:
 Scalar types should use the golang primitive values.  Aliases already exist for these:
  - int
- - int8
- - int16
+ - float32
+ - uint16
  - rune
  - etc...
 
-## Reference Types:
-You should use the class keyword to define a non-scalar schema. By design, interfaces aren't output ot golang code.  See next section on union types.
+*note: these aliases might not already exist, but will be added somehow as standard inclusions in the near future.
+
+## Golang Pointers and Omit Empty:
+The ```Ptr<T>``` type can be used to specify that you'd like to output a pointer type.  For example ```Ptr<string>``` gets converted to ```*string```.  Also, using the question mark token after your property declaration will translate over to the omitempty tag in the json output.
+
+## User Defined Types:
+You should use the class keyword to declare a user defined schema. By design, interfaces aren't output to golang code.  See next section on union types.
 
 ## Union Types:
 You should declare union types like this:
