@@ -10,21 +10,19 @@ import {
     isLiteralTypeNode,
     isArrayTypeNode,
     isUnionTypeNode,
-    InterfaceDeclaration,
+    isPropertyDeclaration,
+    ClassDeclaration,
     TypeNode,
     LiteralTypeNode,
-    UnionTypeNode,
     ArrayTypeNode,
     TypeReferenceNode,
     TypeAliasDeclaration,
-    UnderscoreEscapedMap,
-    Symbol,
+    Identifier,
 } from "typescript";
 import { Writer, pascalCase } from "./utils";
 
 const boolAliases = ['bool']
-const numAliases = ['int', 'int8', 'int16', 'int32', 'int64', 'uint', 'uint8', 'uint16', 'uint32', 'uint64',
-    'float32', 'float64', 'byte', 'rune'];
+const numAliases = ['int', 'int8', 'int16', 'int32', 'int64', 'uint', 'uint8', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'byte', 'rune'];
 const golangPrimitives = ['string'].concat(numAliases).concat(boolAliases);
 
 const getLiteralTypeName = (typeNode: LiteralTypeNode, writer: Writer): string => {
@@ -44,7 +42,7 @@ const getLiteralTypeName = (typeNode: LiteralTypeNode, writer: Writer): string =
 
 const getTypeName = (typeNode: TypeNode, checker: TypeChecker, writer: Writer): string => {
     if (isUnionTypeNode(typeNode)) {
-        return getUnionTypeName(typeNode, checker, writer);
+        return "interface{}"; // Inlined union types will be interpreted as interface. See docs on union types.
     }
     if (isArrayTypeNode(typeNode)) {
         return getArrayTypeName(typeNode, checker, writer);
@@ -97,48 +95,6 @@ const getArrayTypeName = (typeNode: ArrayTypeNode, checker: TypeChecker, writer:
     return `[]${baseType}`
 }
 
-const getUnionTypeName = (node: UnionTypeNode, checker: TypeChecker, writer: Writer): string => {    
-    const stuff = node.types.reduce<Members | undefined>((accumulator, tn) => {
-        if (isTypeReferenceNode(tn)) {
-            const typeName = tn.typeName;
-            if (isIdentifier(typeName)) {
-                const details = checker.getSymbolAtLocation(typeName);
-                if (details && details.members) {
-                    if (!accumulator) {
-                        let initial: Members = {};
-                        details.members.forEach(m => {
-                            const valueDeclaration = m.valueDeclaration;
-                            if (isPropertySignature(valueDeclaration) && !!valueDeclaration.type) {
-                                initial[m.name] = {
-                                    required: !valueDeclaration.questionToken,
-                                    type: getTypeName(valueDeclaration.type, checker, writer),
-                                };
-                            }
-                        });
-                        return initial;
-                    } else {
-                        details.members.forEach(m => {
-                            const valueDeclaration = m.valueDeclaration;
-                            if (isPropertySignature(valueDeclaration) && !!valueDeclaration.type) {
-                                if (!accumulator.hasOwnProperty(m.name)) {
-                                    accumulator[m.name] = {
-                                        required: false,
-                                        type: getTypeName(valueDeclaration.type, checker, writer),
-                                    };
-                                } else {
-
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-        }
-        return undefined;
-    }, undefined);
-    return "ERROR"
-}
-
 const emitPackageDeclaration = (node: VariableStatement, writer: Writer): void => {
     const declarations = node.declarationList.declarations
     declarations.forEach(declaration => {
@@ -162,101 +118,126 @@ interface Members {
     }
 }
 
-const emitInterface = (node: InterfaceDeclaration, writer: Writer, checker: TypeChecker): void => {
-    writer.write(`type ${node.name.text} struct {\n`);
-    node.members.forEach(member => {
-        if (isPropertySignature(member)) {
-            const nullable = !!member.questionToken;
-            const name = member.name;
-            if (isIdentifier(name)) {
-                const propName = name.text;
-                if (member.type) {
-                    let propType = "";
-                    let typeNode = member.type;
-                    propType = getTypeName(typeNode, checker, writer);
-                    if (propType === "") {
-                        debugger;
+const emitClass = (node: ClassDeclaration, writer: Writer, checker: TypeChecker): void => {
+    if (!!node.name) {
+        writer.write(`type ${node.name.text} struct {\n`);
+        node.members.forEach(member => {
+            if (isPropertyDeclaration(member)) {
+                const nullable = !!member.questionToken;
+                const name = member.name;
+                if (isIdentifier(name)) {
+                    const propName = name.text;
+                    if (member.type) {
+                        let propType = "";
+                        let typeNode = member.type;
+                        propType = getTypeName(typeNode, checker, writer);
+                        if (propType === "") {
+                            debugger;
+                        }
+                        // TODO: Property alignment formatting now, or post emit generation.
+                        writer.write(`    ${pascalCase(propName)} ${propType} \`json:"${propName}${nullable ? ",omitempty" : ""}"\`\n`);
                     }
-                    // TODO: Property alignment formatting now, or post emit generation.
-                    writer.write(`    ${pascalCase(propName)} ${propType} \`json:"${propName}${nullable ? ",omitempty" : ""}"\`\n`);
                 }
             }
-        }
-    });
-    writer.write("}\n\n");
+        });
+        writer.write("}\n\n");
+    }
 }
 
 // Any aliases that aren't primitive golang types need to be emitted.
 // They are most likely referenced elsewhere and need definition.
 const emitAlias = (node: TypeAliasDeclaration, writer: Writer, checker: TypeChecker): void => {
-    // debugger;
     const name = node.name;
     if (isIdentifier(name)) {
-
-        // don't emit alias if it is a primitive golang type
-        if (boolAliases.includes(name.text) || numAliases.includes(name.text))
-            return;
+        // don't emit alias if it is a primitive golang type (int, int8, int16, etc...)
+        // things things already exist in golang and they are primitives, not type aliases.
+        if (boolAliases.includes(name.text) || numAliases.includes(name.text)) return;
 
         const type = node.type;
+        if (isLiteralTypeNode(type)) {
+            switch (type.literal.kind) {
+                case SyntaxKind.FalseKeyword:
+                case SyntaxKind.TrueKeyword:
+                    writer.write(`type ${name.text} = bool\n`);
+                    break;
+                case SyntaxKind.NumericLiteral:
+                    writer.write(`type ${name.text} = float64\n`);
+                    break;
+                case SyntaxKind.StringLiteral:
+                    writer.write(`type ${name.text} = string\n`);
+                    break;
+            }
+        }
+        
         if (isTypeReferenceNode(type)) {
             const typeName = type.typeName;
-            if (isIdentifier(typeName)) {
-                writer.write(`type ${name.text} = ${typeName.text}\n\n`);
-            }
+            if (isIdentifier(typeName)) writer.write(`type ${name.text} = ${typeName.text}\n\n`);
         }
         
         if (isUnionTypeNode(type)) {
                 let initialType = "";
-                let aggregatable = true;
+                let canAggregate = true;
                 let unionedTypes: Members[] = [];
                 type.types.forEach(tn => {
+                    // If you can't aggregate the union types just bail, it's going to be interface{} regardless
+                    if (!canAggregate) return;
+
                     if (tn.kind === SyntaxKind.BooleanKeyword) {
                         initialType = initialType || "bool";
-                        aggregatable = initialType === "bool";
+                        canAggregate = initialType === "bool";
                     }
                     if (tn.kind === SyntaxKind.NumberKeyword) {
                         initialType = initialType || "float64";
-                        aggregatable = initialType === "float64";
+                        canAggregate = initialType === "float64";
                     }
                     if (tn.kind === SyntaxKind.StringKeyword) {
                         initialType = initialType || "string";
-                        aggregatable = initialType === "string";
+                        canAggregate = initialType === "string";
                     }
+                    
+                    if (isLiteralTypeNode(tn)) {
+                        switch (tn.literal.kind) {
+                            case SyntaxKind.FalseKeyword:
+                            case SyntaxKind.TrueKeyword:
+                                initialType = initialType || "bool";
+                                canAggregate = initialType === "bool";
+                                break;
+                            case SyntaxKind.NumericLiteral:
+                                initialType = initialType || "float64";
+                                canAggregate = initialType === "float64";
+                                break;
+                            case SyntaxKind.StringLiteral:
+                                initialType = initialType || "string";
+                                canAggregate = initialType === "string";
+                                break;
+                        }
+                    }
+
                     if (isTypeReferenceNode(tn)) {
                         const typeName = tn.typeName;
                         if (isIdentifier(typeName)) {
-                            let golangType = "";
                             if (boolAliases.includes(typeName.text)) {
-                                golangType = "bool";
+                                initialType = initialType || "bool";
+                                canAggregate = initialType === "bool";
                             } else if (numAliases.includes(typeName.text)) {
-                                golangType = "float64";
+                                initialType = initialType || "float64";
+                                canAggregate = initialType === "float64";
                             } else {
-                                const details = checker.getSymbolAtLocation(typeName);
-                                if (details && details.members) {
-                                    let unionedType: Members = {};
-                                    details.members.forEach(m => {
-                                        const valueDeclaration = m.valueDeclaration;
-                                        if (isPropertySignature(valueDeclaration) && !!valueDeclaration.type) {
-                                            unionedType[m.name] = {
-                                                required: !valueDeclaration.questionToken,
-                                                type: getTypeName(valueDeclaration.type, checker, writer),
-                                            }
-                                        }
-                                    });
-                                    unionedTypes.push(unionedType);
+                                initialType = initialType || typeName.text;
+                                canAggregate = !golangPrimitives.includes(initialType);
+                                if (canAggregate) {
+                                    const typeDetails = getTypeDetails(checker, writer, typeName);
+                                    if (!!typeDetails) unionedTypes.push(typeDetails);
                                 }
-                            }
-                            initialType = initialType || golangType || typeName.text;
-                            if (["bool", "float64"].includes(golangType)) { // primitive
-                                aggregatable = initialType === golangType;
                             }
                         }
                     }
+
+                    if (isArrayTypeNode(tn)) {
+                        canAggregate = false;
+                    }
                 });
-                if (!aggregatable) {
-                    writer.write(`type ${name.text} = interface{}\n`);
-                }
-                if (aggregatable) {
+                if (canAggregate) {
                     if (unionedTypes.length > 1) {
                         const flattened = flattenUnion(unionedTypes);                        
                         writer.write(`type ${name.text} struct {\n`);
@@ -268,6 +249,8 @@ const emitAlias = (node: TypeAliasDeclaration, writer: Writer, checker: TypeChec
                     } else {
                         writer.write(`type ${name.text} = ${initialType}\n`);
                     }
+                } else {
+                    writer.write(`type ${name.text} = interface{}\n`);
                 }
         }
     }
@@ -294,4 +277,22 @@ const flattenUnion = (unionedTypes: Members[]): Members => {
     });
 }
 
-export { emitPackageDeclaration, emitInterface, emitAlias }
+const getTypeDetails = (checker: TypeChecker, writer: Writer, identifier: Identifier): Members | undefined => {
+    const details = checker.getSymbolAtLocation(identifier);
+    if (details && details.members) {
+        let typeDetails: Members = {};
+        details.members.forEach(m => {
+            const valueDeclaration = m.valueDeclaration;
+            if (isPropertySignature(valueDeclaration) && !!valueDeclaration.type) {
+                typeDetails[m.name] = {
+                    required: !valueDeclaration.questionToken,
+                    type: getTypeName(valueDeclaration.type, checker, writer),
+                }
+            }
+        });
+        return typeDetails
+    }
+    return undefined;
+}
+
+export { emitPackageDeclaration, emitClass, emitAlias }

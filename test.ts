@@ -19,6 +19,9 @@ type rune = int32;
 const go_package = "api_test";
 
 type AliasInt = int;
+type AliasBoolLiteral = false;
+type AliasNumLiteral = 5;
+type AliasStrLiteral = "Hello";
 type AliasReference = Scalars;
 type AliasUnionIntIn8 = int | int8;
 type AliasUnionIntInt = int | int;
@@ -26,9 +29,12 @@ type AliasUnionInt16Number = int16 | number;
 type AliasUnionStringByte = string | byte;
 type AliasUnionStringString = string | string;
 type AliasUnionStringStringNumber = string | string | number;
-type AliasUnionReferenceString = Scalars | string;
-type AliasUnionReferenceReference = Scalars | Scalars;
+type AliasUnionStrLiteralNumLiteral = "Hello" | 42;
+type AliasUnionStrLiteralStrLiteral = "Hello" | "World";
+type AliasUnionReferenceString = UnionType1 | string;
+type AliasUnionReferenceReference = UnionType1 | UnionType1;
 type AliasUnionReferenceDiffReference = UnionType1 | UnionType2;
+type AliasUnionArrayTypes = int[] | number[];
 
 interface UnionType1 {
     type: "hello";
@@ -44,9 +50,9 @@ interface UnionType2 {
     test2: string;
 }
 
-interface Scalars {
+class Scalars {
     // Defaults
-    my_boolean?: boolean;
+    my_boolean: boolean;
     my_number: number;
     my_string: string;
 
@@ -74,11 +80,11 @@ interface Scalars {
     my_numeric_literal: 1000;
 }
 
-interface Complex {
+class Complex {
     my_complex: Scalars;
 }
 
-interface Arrays {
+class Arrays {
     // Defaults
     my_boolean: boolean[];
     my_number: number[];
@@ -111,22 +117,11 @@ interface Arrays {
     my_complex: Scalars[];
 }
 
-// TODO: Should inline unions not be supported for golang emit?
-// Probably doesn't make sense to come up with arbitrary names
-interface Unions {
-    my_bool_bool_union: boolean | boolean;
-    my_num_num_union: number | number;
-    my_string_string_union: string | string;
-    my_string_string_string_union: string | string | string;
-    my_string_number_union: string | number;
-    my_string_string_number_union: string | string | number;
-    my_false_true_union: false | true;
-    my_int_rune_union: int | rune;
-    my_int_complex_union: int | Scalars;
+class Unions {
+    union_inline: boolean | boolean; // TODO: Maybe support inline primitives?
+    union_alias: AliasUnionReferenceDiffReference;
 }
 
 // TODO: TNullable? vs. Nullable<T> as it relates to T omitempty vs. *T omitempty?
 // TODO: Other potentially scalar interpreted values like time.Time or time.Duration (probably just numerics)
-// TODO: property signatures of embedded Array, Map, Generic<T>, Object Literals and Objects
-// TODO: Clean up union types
-// TODO: Ignore individual type inputs to union types?
+// TODO: property signatures of embedded Map, Generic<T> and Object Literals

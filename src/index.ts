@@ -6,11 +6,11 @@ import {
     ScriptTarget,
     ModuleKind,
     isVariableStatement,
-    isInterfaceDeclaration,
     isTypeAliasDeclaration,
+    isClassDeclaration,
 } from "typescript";
 import { createWriter } from "./utils";
-import { emitPackageDeclaration, emitInterface, emitAlias } from "./emitter";
+import { emitPackageDeclaration, emitClass, emitAlias } from "./emitter";
 
 global.lkp = (kind: SyntaxKind): string => SyntaxKind[kind];
 
@@ -27,7 +27,7 @@ const codeGen = (fileNames: string[], options: CompilerOptions) => {
         const walk = (node: Node): void => {
             if (isVariableStatement(node)) emitPackageDeclaration(node, writer);
             if (isTypeAliasDeclaration(node)) emitAlias(node, writer, checker);
-            if (isInterfaceDeclaration(node)) emitInterface(node, writer, checker);
+            if (isClassDeclaration(node)) emitClass(node, writer, checker);
             node.forEachChild(walk);
         }
         

@@ -1,4 +1,4 @@
-interface Ribbon {
+class Ribbon {
     title: string;
     tiles: Tile[];
     total_tiles: int;
@@ -10,7 +10,7 @@ type Tile = StandardTile | ButtonTile;
 
 interface StandardTile {
     format: "STANDARD";
-    image: Image;
+    image: Thumbnail;
     title: string;
     attributes?: Attribute[];
 }
@@ -19,7 +19,7 @@ interface ButtonTile {
     format: "BUTTON";
 }
 
-interface Image {
+class Thumbnail {
     w: int;
     h: int;
     url: string;
