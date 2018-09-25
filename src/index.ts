@@ -53,7 +53,7 @@ const codeGen = (fileNames: string[], options: CompilerOptions) => {
         
         // writer.toConsole();
         const gofilename = file.fileName.slice(0, file.fileName.length - 2) + "go"
-        writer.toFile(gofilename);
+        writer.toFile(file.fileName, gofilename);
         console.log(`Successfully generated go file: ${gofilename}`);
     });
 }
