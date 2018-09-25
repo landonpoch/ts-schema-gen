@@ -1,8 +1,8 @@
 /// <reference path="globals.d.ts" />
 
-import { Ribbon } from "./test2";
-
-type Alias = Ribbon;
+class Test {
+    test: object;
+}
 
 const go_package = "api_test";
 

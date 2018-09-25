@@ -89,6 +89,9 @@ const getReferenceTypeName = (typeNode: TypeReferenceNode, checker: TypeChecker,
             const genericType = typeNode.typeArguments[0];
             return `*${getTypeName(genericType, checker, writer)}`;
         }
+        if (typeName.text === "Object") {
+            return "interface{}";
+        }
         return typeName.text;
     }
     writer.toConsole();

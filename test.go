@@ -1,4 +1,6 @@
-type Alias = Ribbon
+type Test struct {
+    Test interface{} `json:"test"`
+}
 
 package api_test
 
