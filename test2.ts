@@ -1,4 +1,4 @@
-class Ribbon {
+export class Ribbon {
     title: string;
     tiles: Tile[];
     total_tiles: int;

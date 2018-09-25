@@ -8,6 +8,11 @@ import {
     isVariableStatement,
     isTypeAliasDeclaration,
     isClassDeclaration,
+    // isImportDeclaration,
+    // isImportSpecifier,
+    // isIdentifier,
+    // isNamedImports,
+    // isTypeNode,
 } from "typescript";
 import { createWriter } from "./utils";
 import { emitPackageDeclaration, emitClass, emitAlias } from "./emitter";
@@ -26,6 +31,18 @@ const codeGen = (fileNames: string[], options: CompilerOptions) => {
         // see: https://en.wikipedia.org/wiki/Abstract_syntax_tree
         const walk = (node: Node): void => {
             // printAllChildren(node);
+            // TODO: Eventually we may want to support importing from other files, if so, this code becomes necessary.
+            // if (isImportDeclaration(node) && !!node.importClause && !!node.importClause.namedBindings) {
+            //     node.importClause.namedBindings.forEachChild(c => {
+            //         if (isImportSpecifier(c)) {
+            //             const type = checker.getTypeAtLocation(c);
+            //             const name = type.symbol.name;
+            //             if (!!type.symbol.members) {
+            //                 debugger;
+            //             }
+            //         }
+            //     });
+            // }
             if (isVariableStatement(node)) emitPackageDeclaration(node, writer);
             if (isTypeAliasDeclaration(node)) emitAlias(node, writer, checker);
             if (isClassDeclaration(node)) emitClass(node, writer, checker);
@@ -33,7 +50,11 @@ const codeGen = (fileNames: string[], options: CompilerOptions) => {
         }
         
         walk(file);
-        writer.toConsole();
+        
+        // writer.toConsole();
+        const gofilename = file.fileName.slice(0, file.fileName.length - 2) + "go"
+        writer.toFile(gofilename);
+        console.log(`Successfully generated go file: ${gofilename}`);
     });
 }
 

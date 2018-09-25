@@ -1,3 +1,5 @@
+import { writeFileSync } from "fs";
+
 export interface Struct {
     name: string;
     members: Members;
@@ -14,6 +16,7 @@ export interface Writer {
     write(text: string): void;
     writeStruct(struct: Struct): void;
     toConsole(): void;
+    toFile(filename: string): void;
 }
 
 const createWriter = (): Writer => {
@@ -37,7 +40,8 @@ const createWriter = (): Writer => {
         write("}\n\n");
     }
     const toConsole = () => { console.log(text) }
-    return { write, writeStruct, toConsole };
+    const toFile = (filename: string) => { writeFileSync(filename, text); }
+    return { write, writeStruct, toConsole, toFile };
 }
 
 const pascalCase = (val: string): string =>
