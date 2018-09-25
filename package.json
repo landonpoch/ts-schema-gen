@@ -2,13 +2,18 @@
   "name": "ts-schema-gen",
   "version": "1.0.0",
   "bin": "dist/generate.js",
+  "types": "globals.d.ts",
   "scripts": {
+    "preinstall": "tsc",
     "build": "tsc",
     "start": "node dist/index.js"
   },
   "license": "MIT",
   "dependencies": {
     "typescript": "^3.0.3"
+  },
+  "peerDependencies": {
+    "@types/node": "^9.3.0"
   },
   "devDependencies": {
     "@types/node": "^9.3.0"

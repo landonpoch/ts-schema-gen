@@ -10,13 +10,6 @@ export interface Members {
     }
 }
 
-interface StructMember {
-    golangName: string;
-    typeName: string;
-    jsonName: string;
-    required: boolean;
-}
-
 export interface Writer {
     write(text: string): void;
     writeStruct(struct: Struct): void;
@@ -48,6 +41,6 @@ const createWriter = (): Writer => {
 }
 
 const pascalCase = (val: string): string =>
-    val.split("_").map(s => s[0].toUpperCase() + s.slice(1)).join("")
+    val.split("_").map(s => s[0].toUpperCase() + s.slice(1).toLowerCase()).join("")
 
 export { createWriter, pascalCase }

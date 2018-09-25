@@ -18,6 +18,7 @@ import {
     TypeReferenceNode,
     TypeAliasDeclaration,
     Identifier,
+    StringLiteral,
 } from "typescript";
 import { Writer, Members } from "./utils";
 
@@ -123,15 +124,12 @@ const emitClass = (node: ClassDeclaration, writer: Writer, checker: TypeChecker)
             if (isPropertyDeclaration(member)) {
                 const nullable = !!member.questionToken;
                 const name = member.name;
-                if (isIdentifier(name)) {
-                    const propName = name.text;
+                if (isIdentifier(name) || name.kind === 9) {
+                    const propName = (<Identifier | StringLiteral>name).text;    
                     if (member.type) {
-                        let propType = "";
-                        let typeNode = member.type;
-                        propType = getTypeName(typeNode, checker, writer);
                         members[propName] = {
                             required: !nullable,
-                            type: propName,
+                            type: getTypeName(member.type, checker, writer),
                         };
                     }
                 }

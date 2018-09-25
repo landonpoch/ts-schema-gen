@@ -1,22 +1,3 @@
-// TODO: Move golang type aliases to separate file and import them?
-// golang type aliases
-type Ptr<T> = T;
-type bool = boolean;
-type int = number;
-type int8 = number;
-type int16 = number;
-type int32 = number;
-type int64 = number;
-type uint = number;
-type uint8 = number;
-type uint16 = number;
-type uint32 = number;
-type uint64 = number;
-type float32 = number;
-type float64 = number;
-type byte = uint8;
-type rune = int32;
-
 const go_package = "api_test";
 
 type AliasInt = int;
@@ -127,5 +108,6 @@ class Unions {
     union_alias: AliasUnionReferenceDiffReference;
 }
 
+// TODO: Following imports into child files
 // TODO: Other potentially scalar interpreted values like time.Time or time.Duration (probably just numerics)
 // TODO: property signatures of embedded Map, Generic<T> and Object Literals

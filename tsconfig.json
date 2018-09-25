@@ -65,6 +65,7 @@
   },
   "include": [
     "extensions.d.ts",
+    "globals.d.ts",
     "src/**/*"
   ]
 }
